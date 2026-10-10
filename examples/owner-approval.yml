@@ -1,0 +1,24 @@
+name: Owner approval
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: owner-approval-${{ github.event.pull_request.number || 'main' }}
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    environment: owner-approval # Restrict this environment to the main BRANCH.
+    steps:
+      - uses: rickwierenga/codeowners-self-approval@10b90e56a4063725f703452faef9d39a02ffacfc
+        with:
+          approval-token: ${{ secrets.OWNER_APPROVAL_TOKEN }}
