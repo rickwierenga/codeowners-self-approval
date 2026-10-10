@@ -1,0 +1,21 @@
+name: CODEOWNERS self-approval
+description: Approve a code owner's own PR using trusted CODEOWNERS and GitHub teams.
+inputs:
+  approval-token:
+    description: Dedicated code-owner account PAT with PR write and organization Members read.
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      with:
+        ref: refs/heads/main
+        fetch-depth: 0
+        persist-credentials: false
+    - shell: bash
+      working-directory: ${{ github.workspace }}
+      run: python3 "$ACTION_PATH/owner_approval.py"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        READ_TOKEN: ${{ github.token }}
+        APPROVAL_TOKEN: ${{ inputs.approval-token }}
