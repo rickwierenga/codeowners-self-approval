@@ -1,66 +1,47 @@
 # CODEOWNERS self-approval
 
-Let a code owner merge their own PR when **every changed path belongs to them**.
-An action supplies the code-owner approval through a dedicated GitHub account.
-Other contributors' PRs use normal CODEOWNERS reviews. No server to host.
+A required **Code ownership** check lets managers merge PRs for their assigned
+paths. The author counts as an owner; other owners approve using normal GitHub
+reviews. Ownership comes from `.github/CODEOWNERS`, including organization teams.
+Anyone with Write can click Merge after the requirements pass.
 
-Supports individual owners and organization teams. Runs on GitHub's Ubuntu runners
-against public repositories with a protected `main` branch.
+## Setup
 
-## Installation
+1. Register an organization-owned GitHub App with **Checks: write**, **Contents:
+   read**, **Pull requests: read**, and organization **Members: read**. Disable
+   webhooks and install it on the repository. No server or extra user account.
+2. Create environment `ownership-policy`. Allow only **Branch: main**, with no
+   tag rules. Store its key as environment secret `OWNERSHIP_APP_PRIVATE_KEY`
+   and its ID as environment variable `OWNERSHIP_APP_ID`. Managers must not have
+   permission to change the environment or branch protection.
+3. Copy [the workflow](examples/owner-approval.yml), which pins the action revision.
+4. In your existing `Unit Tests` workflow, add `pull_request_review:` under `on`
+   and `if: github.event_name != 'pull_request_review'` to each test job. Its
+   completion signals review changes to the trusted workflow without rerunning
+   tests. Give skipped jobs a distinct name on review events so they do not replace
+   real test results. If your workflow has another name, update `workflows`.
+5. Once tested on GitHub, require **Code ownership** from **this specific App**
+   in `main` protection. Require branches to be up to date and PRs for changes;
+   set native required approvals to zero and disable native code-owner reviews.
+   Preserve existing CI requirements. Managers get Write, without bypass.
 
-1. **Create a dedicated approval account.** Add it to your organization
-   and give it Write access to your repository. Keep this account for automation only.
-2. **Create its fine-grained PAT.** Select your organization as the resource owner,
-   your repository, repository permission **Pull requests: write**, and organization
-   permission **Members: read**. Approve the token in the organization if required.
-3. **Protect the token.** In your repository's Settings → Environments, create `owner-approval`.
-   Select **Selected branches and tags**; add only **Branch: main**. Add no tag
-   rules or required reviewers. Store `OWNER_APPROVAL_TOKEN` as an **environment
-   secret**, not a repository secret.
-4. **Add CODEOWNERS.** Define your paths and owners in `.github/CODEOWNERS`.
-   Each line eligible for automatic approval needs its human owners or team
-   plus the dedicated approval account.
-   Keep `.github/` owned only by trusted human maintainers. Teams must be visible
-   and have Write access; the approval account must appear explicitly on each line.
-5. **Add the workflow.** Copy [owner-approval.yml](examples/owner-approval.yml)
-   into your repository's `.github/workflows/`. It calls:
+The App identifies the required check so another writer cannot fake a passing
+result using a different workflow. Its key is available only to trusted `main`
+workflows. The action never executes PR code or submits approval reviews.
 
-   ```yaml
-   - uses: rickwierenga/codeowners-self-approval@10b90e56a4063725f703452faef9d39a02ffacfc
-     with:
-       approval-token: ${{ secrets.OWNER_APPROVAL_TOKEN }}
-   ```
+## Behavior
 
-6. **Protect `main`.** Require pull requests, one approval, code-owner reviews,
-   **Dismiss stale pull request approvals when new commits are pushed**, and
-   your existing CI checks. Code owners get Write with no bypass. They must
-   not be able to administer the protected environment or branch rules.
+- Opening or updating a PR, changing reviews, and updating `main` recheck ownership.
+- Every changed path needs its author or an approving owner. Reviews must cover
+  the current head commit. Changes-requested reviews from writers block merging.
+- Author authority requires an authenticated author event for that exact head;
+  another person's push needs owner review or a fresh author event.
+- Last matching CODEOWNERS rule wins. Supported: `*`, anchored files/directories,
+  and `*` or `?` in the final component. Other syntax fails closed.
+- Renames check both paths. API failures fail the check. Membership changes take
+  effect on the next evaluation; they do not themselves trigger a workflow.
+- GitHub checks are asynchronous: review revocation and check completion are not
+  atomic. Runs queue sequentially (GitHub limits the pending queue to 100).
 
-Install the workflow and CODEOWNERS on `main` through your normal review process.
-The action is not a required status check: GitHub's native review requirement is
-the merge gate. Update the pinned action commit deliberately when adopting changes.
-
-## Behavior and limits
-
-- PR creation, pushes, reopening, marking ready, and editing trigger evaluation.
-  Pushes to `main` recheck open PRs against the current ownership policy.
-- The author must currently have Write and own every changed path. A qualifying
-  author event or the bot's previous authorization of the exact head commit is
-  required. Another person's new commits do not inherit the author's authority.
-- A base-change recheck can renew a dismissed bot approval of that same revision.
-  This also applies to a manually dismissed bot approval; use a human
-  changes-requested review to block merging pending human review.
-- PRs spanning different owners require normal human reviews unless the author owns all paths.
-  Any writer can merge once the native requirements pass.
-- Supported patterns: `*`, anchored files/directories, and `*` or `?` in the final
-  component. Last match wins. Unsupported syntax stops automatic approval.
-- Removing ownership or membership does not revoke an existing bot approval.
-  Token expiration or API failures stop new automatic approvals.
-- The action reads trusted base-branch policy, checks both sides of renames,
-  and never checks out or executes PR code. Moving snapshots are retried up to
-  three times; the final check and approval submission are separate API calls.
-
-Validated with local mocked approval, team, and base-change scenarios. GitHub's
-end-to-end approval behavior, including the final submission race, is not yet
-live-tested.
+This revision is under local validation. It is not yet installed or tested end
+to end on GitHub. Do not change branch protection until that validation passes.
