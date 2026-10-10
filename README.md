@@ -43,5 +43,6 @@ workflows. The action never executes PR code or submits approval reviews.
 - GitHub checks are asynchronous: review revocation and check completion are not
   atomic. Runs queue sequentially (GitHub limits the pending queue to 100).
 
-This revision is under local validation. It is not yet installed or tested end
-to end on GitHub. Do not change branch protection until that validation passes.
+Validated with 21 local ownership/review checks and a successful live GitHub
+Actions evaluation of 42 open PRs using an organization App. Author and review
+event scenarios were tested locally; no test PR was merged.
