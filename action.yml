@@ -1,8 +1,11 @@
-name: CODEOWNERS self-approval
-description: Approve a code owner's own PR using trusted CODEOWNERS and GitHub teams.
+name: Code ownership
+description: Check CODEOWNERS against the PR author and owner reviews.
 inputs:
-  approval-token:
-    description: Dedicated code-owner account PAT with PR write and organization Members read.
+  app-token:
+    description: Installation token from the organization's ownership GitHub App.
+    required: true
+  app-id:
+    description: ID of that GitHub App.
     required: true
 runs:
   using: composite
@@ -17,5 +20,5 @@ runs:
       run: python3 "$ACTION_PATH/owner_approval.py"
       env:
         ACTION_PATH: ${{ github.action_path }}
-        READ_TOKEN: ${{ github.token }}
-        APPROVAL_TOKEN: ${{ inputs.approval-token }}
+        APP_TOKEN: ${{ inputs.app-token }}
+        APP_ID: ${{ inputs.app-id }}
