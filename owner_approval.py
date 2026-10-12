@@ -1,4 +1,4 @@
-"""Check path ownership using trusted main, author consent, and current reviews."""
+"""Check path ownership using trusted main, author ownership, and current reviews."""
 
 import json
 from functools import cache
@@ -104,25 +104,15 @@ def uncovered(paths, lookup, people):
     return [path for path in paths if not covered(path)]
 
 
-def evaluate(number, event):
+def evaluate(number):
     endpoint = f"{ROOT}/pulls/{number}"
     pr = api(endpoint)
     if pr["state"] != "open" or pr["base"]["ref"] != "main":
         return
     head, base = pr["head"]["sha"], pr["base"]["sha"]
     author = pr["user"]["login"].lower()
-    proof = f"owner:{number}:{pr['user']['id']}:{head}"
-    checks = api(f"{ROOT}/commits/{head}/check-runs?check_name=Code%20ownership&filter=all&per_page=100",
-                 paginate=True, key="check_runs")
-    consent = any(c["app"]["id"] == int(os.environ["APP_ID"]) and c.get("external_id") == proof
-                  for c in checks)
-    consent |= (os.environ["GITHUB_EVENT_NAME"] == "pull_request_target"
-                and event.get("number") == number
-                and event["sender"]["id"] == pr["user"]["id"]
-                and event["pull_request"]["head"]["sha"] == head)
     check = api(f"{ROOT}/check-runs", {
         "name": "Code ownership", "head_sha": head, "status": "in_progress",
-        "external_id": proof if consent else "",
     })
     check_endpoint = f"{ROOT}/check-runs/{check['id']}"
     try:
@@ -138,7 +128,7 @@ def evaluate(number, event):
                     "--name-only", "-z", f"{base}...{head}", "--").decode().split("\0")[:-1]
         reviews = api(f"{endpoint}/reviews?per_page=100", paginate=True)
         people, blocking = review_decisions(reviews, head)
-        if consent and writer(author):
+        if writer(author):
             people.add(author)
         missing = uncovered(paths, lookup, people)
         current = api(endpoint)
@@ -174,7 +164,7 @@ def main():
     failures = []
     for number in numbers:
         try:
-            evaluate(number, event)
+            evaluate(number)
         except (subprocess.CalledProcessError, ValueError, RuntimeError) as error:
             failures.append(number)
             print(f"PR #{number}: {error}")

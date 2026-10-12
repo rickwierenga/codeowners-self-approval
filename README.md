@@ -34,8 +34,8 @@ workflows. The action never executes PR code or submits approval reviews.
 - Opening or updating a PR, changing reviews, and updating `main` recheck ownership.
 - Every changed path needs its author or an approving owner. Reviews must cover
   the current head commit. Changes-requested reviews from writers block merging.
-- Author authority requires an authenticated author event for that exact head;
-  another person's push needs owner review or a fresh author event.
+- The PR author counts for paths they currently own, regardless of who pushed
+  the commits. The author must still have Write access.
 - Last matching CODEOWNERS rule wins. Supported: `*`, anchored files/directories,
   and `*` or `?` in the final component. Other syntax fails closed.
 - Renames check both paths. API failures fail the check. Membership changes take
